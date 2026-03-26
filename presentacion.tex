@@ -1,0 +1,638 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{bookmark}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{textcomp}
+
+% ===== ESTILO DE CODIGO =====
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codeblue}{rgb}{0,0,0.7}
+
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codegreen},
+  stringstyle=\color{red},
+  breaklines=true,
+  numbers=left,
+  numbersep=5pt,
+  numberstyle=\tiny\color{codegray},
+  language=Python,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{gray!40},
+}
+\lstset{style=mystyle}
+
+% ===== METADATOS =====
+\title{Sistema de Computaci\'on Ubicua}
+\subtitle{Comunicaci\'on Bidireccional entre Nodo Central y Nodos Sensores}
+\author{Jose Mena P}
+\institute{Tecnolog\'ias Emergentes}
+\date{\today}
+
+% ===== DOCUMENTO =====
+\begin{document}
+
+%------------------------------------------------
+\begin{frame}
+\titlepage
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Contenido}
+\tableofcontents
+\end{frame}
+
+%================================================
+\section{Computaci\'on Ubicua}
+%================================================
+
+\begin{frame}{?`Qu\'e es la Computaci\'on Ubicua?}
+
+La \textbf{computaci\'on ubicua} (ubiquitous computing) es el paradigma donde la
+tecnolog\'ia est\'a integrada en el entorno f\'isico de forma transparente para el usuario.
+
+\vspace{0.5em}
+\begin{block}{Concepto clave}
+Los dispositivos computan y se comunican \textbf{en todo momento y lugar},
+sin que el usuario deba interactuar directamente con ellos.
+\end{block}
+
+\vspace{0.5em}
+\begin{itemize}
+  \item Propuesto por Mark Weiser (Xerox PARC, 1991).
+  \item Base del Internet de las Cosas (IoT).
+  \item Los sensores recolectan datos; el nodo central decide y actua.
+  \item Ejemplos: termostatos inteligentes, c\'amaras de seguridad, wearables.
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Principios del Sistema Dise\~nado}
+
+Nuestro sistema aplica tres principios fundamentales de la computaci\'on ubicua:
+
+\vspace{0.5em}
+\begin{columns}
+\column{0.32\textwidth}
+\begin{exampleblock}{Percepci\'on}
+Los nodos sensores miden temperatura, humedad y movimiento del entorno f\'isico.
+\end{exampleblock}
+
+\column{0.32\textwidth}
+\begin{exampleblock}{Comunicaci\'on}
+Los nodos intercambian informaci\'on con el nodo central mediante el protocolo HTTP.
+\end{exampleblock}
+
+\column{0.32\textwidth}
+\begin{exampleblock}{Acci\'on}
+El nodo central env\'ia comandos para controlar actuadores (LEDs y motores).
+\end{exampleblock}
+\end{columns}
+
+\vspace{1em}
+\begin{alertblock}{Caracter\'istica diferenciadora}
+La comunicaci\'on es \textbf{bidireccional}: los nodos no solo env\'ian datos,
+tambi\'en reciben y ejecutan \'ordenes del nodo central.
+\end{alertblock}
+\end{frame}
+
+%================================================
+\section{Arquitectura del Sistema}
+%================================================
+
+\begin{frame}{Diagrama General del Sistema}
+
+\begin{center}
+\ttfamily\small
+\begin{tabular}{c}
+\hline
+\textbf{Usuario (Telegram / Streamlit)} \\
+\hline
+$\updownarrow$ comandos / alertas \\
+\hline
+\textbf{NODO CENTRAL} \quad nodo\_central.py \\
+Monitoreo + Bot Telegram + Men\'u consola \\
+\hline
+$\updownarrow$ HTTP GET /datos \quad $\updownarrow$ HTTP POST /comando \\
+\hline
+\begin{tabular}{c|c}
+\textbf{NODO SENSOR 1} & \textbf{NODO SENSOR 2} \\
+localhost:5001 & localhost:5002 \\
+Temperatura + Humedad & Movimiento + Presencia \\
+LED + Motor & LED \\
+\end{tabular} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\begin{itemize}
+  \item Toda la comunicaci\'on usa \textbf{HTTP + JSON}.
+  \item No requiere librer\'ias externas: solo la biblioteca est\'andar de Python.
+  \item Cada nodo corre en su propio proceso (terminal independiente).
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Archivos del Proyecto}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Archivo} & \textbf{Puerto} & \textbf{Funci\'on} \\
+\midrule
+\texttt{config.py}         & ---    & Token Telegram, URLs, umbrales \\
+\texttt{nodo\_sensor\_1.py} & 5001   & Servidor HTTP: temperatura, LED, motor \\
+\texttt{nodo\_sensor\_2.py} & 5002   & Servidor HTTP: movimiento, LED \\
+\texttt{nodo\_central.py}  & ---    & Monitoreo, alertas, bot Telegram \\
+\texttt{interfaz.py}       & 8501   & Panel Streamlit (visualizaci\'on) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\begin{block}{Dependencias}
+\texttt{pip install streamlit} \quad (el resto usa solo la biblioteca est\'andar de Python 3)
+\end{block}
+\end{frame}
+
+%================================================
+\section{Nodo Sensor 1}
+%================================================
+
+\begin{frame}[fragile]{Nodo Sensor 1 --- Sensores Simulados}
+
+El Nodo 1 simula dos sensores f\'isicos mediante funciones que generan valores aleatorios
+con comportamiento realista.
+
+\vspace{0.3em}
+\begin{lstlisting}
+def leer_temperatura():
+    global _temperatura_base
+    # Fluctuacion lenta del ambiente
+    _temperatura_base += random.uniform(-0.3, 0.3)
+    _temperatura_base = max(10.0, min(45.0, _temperatura_base))
+    # Pico esporadico (5% probabilidad) para disparar alertas
+    if random.random() < 0.05:
+        return round(_temperatura_base + random.uniform(10, 15), 1)
+    return round(_temperatura_base + random.uniform(-0.5, 0.5), 1)
+
+def leer_humedad():
+    return round(random.uniform(40.0, 80.0), 1)
+\end{lstlisting}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{Nodo Sensor 1 --- Servidor HTTP}
+
+El nodo implementa un servidor HTTP con dos endpoints usando \texttt{http.server}
+de la biblioteca est\'andar de Python.
+
+\vspace{0.3em}
+\begin{lstlisting}
+class ManejadorNodo1(BaseHTTPRequestHandler):
+
+    def do_GET(self):           # GET /datos
+        if self.path == "/datos":
+            respuesta = {
+                "temperatura": leer_temperatura(),
+                "humedad":     leer_humedad(),
+                "led":         estado["led"],
+                "motor":       estado["motor"],
+            }
+            self._responder_json(200, respuesta)
+
+    def do_POST(self):          # POST /comando
+        cuerpo  = json.loads(self.rfile.read(...))
+        comando = cuerpo.get("comando", "").upper()
+        if   comando == "LED_ON":    estado["led"]   = True
+        elif comando == "LED_OFF":   estado["led"]   = False
+        elif comando == "MOTOR_ON":  estado["motor"] = True
+        elif comando == "MOTOR_OFF": estado["motor"] = False
+        self._responder_json(200, {"ok": True, "comando": comando})
+\end{lstlisting}
+\end{frame}
+
+%================================================
+\section{Nodo Sensor 2}
+%================================================
+
+\begin{frame}[fragile]{Nodo Sensor 2 --- Sensor de Movimiento}
+
+El Nodo 2 simula un sensor PIR (Passive Infrared) que detecta movimiento.
+La probabilidad var\'ia seg\'un la hora del d\'ia para simular actividad real.
+
+\vspace{0.3em}
+\begin{lstlisting}
+def leer_movimiento():
+    hora_actual = datetime.now().hour
+    # Mayor probabilidad en horario diurno
+    if 8 <= hora_actual <= 18:
+        probabilidad = 0.25     # 25% durante el dia
+    else:
+        probabilidad = 0.10     # 10% en horario nocturno
+
+    detectado = random.random() < probabilidad
+    if detectado:
+        _detecciones_movimiento += 1
+    return detectado
+\end{lstlisting}
+
+\vspace{0.3em}
+\begin{block}{Actuador}
+El Nodo 2 tiene un \textbf{LED de alerta} que el nodo central enciende
+autom\'aticamente cuando detecta movimiento fuera del horario permitido.
+\end{block}
+\end{frame}
+
+%================================================
+\section{Nodo Central}
+%================================================
+
+\begin{frame}[fragile]{Nodo Central --- Arquitectura de Hilos}
+
+El nodo central ejecuta \textbf{tres tareas en paralelo} usando \texttt{threading}:
+
+\vspace{0.5em}
+\begin{columns}
+\column{0.32\textwidth}
+\begin{block}{Hilo 1\\\small Monitoreo}
+Cada 5 segundos consulta ambos nodos, verifica umbrales y registra fallos.
+\end{block}
+
+\column{0.32\textwidth}
+\begin{block}{Hilo 2\\\small Bot Telegram}
+Hace long polling a la API de Telegram y responde comandos del usuario.
+\end{block}
+
+\column{0.32\textwidth}
+\begin{block}{Hilo Principal\\\small Men\'u consola}
+Men\'u interactivo en terminal para enviar comandos manualmente.
+\end{block}
+\end{columns}
+
+\vspace{1em}
+\begin{lstlisting}
+hilo_monitoreo = threading.Thread(target=ciclo_monitoreo, daemon=True)
+hilo_telegram  = threading.Thread(target=ciclo_bot_telegram, daemon=True)
+hilo_monitoreo.start()
+hilo_telegram.start()
+menu_consola()   # hilo principal (bloquea hasta que el usuario salga)
+\end{lstlisting}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{Nodo Central --- Ciclo de Monitoreo}
+
+\begin{lstlisting}
+def ciclo_monitoreo():
+    while True:
+        # --- Nodo 1 ---
+        datos1 = consultar_nodo(config.NODO_1_URL, "Nodo1")
+        if datos1:
+            nodo_recuperado("nodo_1", "Nodo1")
+            verificar_temperatura(datos1)     # alerta si fuera de umbral
+        else:
+            verificar_nodo_caido("nodo_1", "Nodo1")  # alerta si sin respuesta
+
+        # --- Nodo 2 ---
+        datos2 = consultar_nodo(config.NODO_2_URL, "Nodo2")
+        if datos2:
+            nodo_recuperado("nodo_2", "Nodo2")
+            verificar_movimiento(datos2)      # alerta si movimiento nocturno
+        else:
+            verificar_nodo_caido("nodo_2", "Nodo2")
+
+        time.sleep(config.INTERVALO_POLLING_SEG)   # esperar 5 segundos
+\end{lstlisting}
+\end{frame}
+
+%================================================
+\section{Bot de Telegram}
+%================================================
+
+\begin{frame}[fragile]{Bot de Telegram --- Configuraci\'on}
+
+\begin{columns}
+\column{0.55\textwidth}
+\textbf{Pasos para crear el bot:}
+\begin{enumerate}
+  \item Buscar \texttt{@BotFather} en Telegram
+  \item Ejecutar \texttt{/newbot} y asignar nombre y username
+  \item Copiar el \textbf{token} generado (formato: \texttt{123456789:AABBcc...})
+  \item Enviar un mensaje al bot y visitar:\\
+        \texttt{api.telegram.org/bot\{TOKEN\}/getUpdates}
+  \item Anotar el campo \texttt{"id"} dentro de \texttt{"chat"} (\textbf{Chat ID})
+  \item Pegar ambos valores en \texttt{config.py}
+\end{enumerate}
+
+\column{0.42\textwidth}
+\begin{exampleblock}{config.py}
+\begin{lstlisting}
+TELEGRAM_TOKEN =
+  "8689495203:AAFrKj..."
+
+TELEGRAM_CHAT_ID =
+  "933445452"
+\end{lstlisting}
+\end{exampleblock}
+\end{columns}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{Bot de Telegram --- Long Polling}
+
+El bot utiliza la t\'ecnica de \textbf{long polling} para recibir mensajes
+sin necesidad de un servidor p\'ublico (no requiere webhook).
+
+\vspace{0.3em}
+\begin{lstlisting}
+def ciclo_bot_telegram():
+    # Saltar mensajes previos al inicio del programa
+    pendientes = obtener_actualizaciones_telegram(offset=0)
+    offset = pendientes[-1]["update_id"] + 1 if pendientes else 0
+
+    while True:
+        actualizaciones = obtener_actualizaciones_telegram(offset)
+        for update in actualizaciones:
+            offset   = update["update_id"] + 1
+            texto    = update["message"]["text"]
+            chat_id  = str(update["message"]["chat"]["id"])
+            respuesta = procesar_comando_telegram(texto)
+            # Responder al usuario
+            _llamar_api_telegram("sendMessage", {
+                "chat_id": chat_id,
+                "text":    respuesta,
+            })
+\end{lstlisting}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Bot de Telegram --- Comandos Disponibles}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Comando} & \textbf{Acci\'on} \\
+\midrule
+\texttt{/ayuda}    & Lista todos los comandos disponibles \\
+\texttt{/estado}   & Muestra temperatura, movimiento y actuadores \\
+\texttt{/led1\_on}  & Enciende el LED del Nodo 1 \\
+\texttt{/led1\_off} & Apaga el LED del Nodo 1 \\
+\texttt{/motor\_on} & Enciende el motor del Nodo 1 \\
+\texttt{/motor\_off}& Apaga el motor del Nodo 1 \\
+\texttt{/led2\_on}  & Enciende el LED del Nodo 2 \\
+\texttt{/led2\_off} & Apaga el LED del Nodo 2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\begin{alertblock}{Alertas autom\'aticas (sin comando del usuario)}
+El bot tambi\'en env\'ia mensajes proactivos cuando detecta condiciones
+anormales (temperatura, movimiento nocturno, nodo ca\'ido).
+\end{alertblock}
+\end{frame}
+
+%================================================
+\section{Interfaz Streamlit}
+%================================================
+
+\begin{frame}{Interfaz Streamlit --- Panel de Control}
+
+La interfaz \texttt{interfaz.py} provee un panel visual que:
+
+\begin{itemize}
+  \item Consulta los nodos cada \textbf{3 segundos} (\texttt{st.rerun()})
+  \item Muestra el estado de cada actuador con indicadores de color:
+    \begin{itemize}
+      \item \textcolor{green}{\textbullet} \textbf{Verde} = LED Nodo 1 encendido
+      \item \textcolor{blue}{\textbullet} \textbf{Azul} = Motor encendido
+      \item \textcolor{orange}{\textbullet} \textbf{Amarillo} = LED Nodo 2 encendido
+      \item \textbullet{} \textbf{Negro} = apagado
+    \end{itemize}
+  \item Incluye botones \textit{Encender / Apagar} para cada actuador
+  \item Muestra alertas cuando hay movimiento detectado
+\end{itemize}
+
+\vspace{0.5em}
+\begin{block}{Ejecutar}
+\texttt{streamlit run interfaz.py}\\
+Se abre en \texttt{http://localhost:8501}
+\end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{Interfaz Streamlit --- L\'ogica de Auto-refresco}
+
+\begin{lstlisting}
+# Consultar datos de ambos nodos en cada ciclo
+datos1 = consultar_nodo(config.NODO_1_URL)
+datos2 = consultar_nodo(config.NODO_2_URL)
+
+# Mostrar indicador visual del LED
+led1_on = datos1["led"]
+color_led1 = "verde" if led1_on else "negro"
+st.markdown(f"### {'Encendido' if led1_on else 'Apagado'}")
+
+# Botones de control
+if st.button("Encender LED"):
+    enviar_comando(config.NODO_1_URL, "LED_ON")
+    st.rerun()        # refrescar inmediatamente
+
+# Auto-refresh automatico cada 3 segundos
+time.sleep(3)
+st.rerun()
+\end{lstlisting}
+\end{frame}
+
+%================================================
+\section{Alertas y Umbrales}
+%================================================
+
+\begin{frame}[fragile]{L\'ogica de Alertas --- Temperatura}
+
+\begin{lstlisting}
+# Umbrales en config.py
+TEMP_MAX_C = 30.0    # Alerta si temperatura SUPERA este valor
+TEMP_MIN_C = 15.0    # Alerta si temperatura es INFERIOR a este valor
+
+def verificar_temperatura(datos_nodo1):
+    temp = datos_nodo1.get("temperatura")
+    if temp > config.TEMP_MAX_C and not _alerta_temp_enviada["alta"]:
+        msg = (f"ALERTA TEMPERATURA ALTA\n"
+               f"Temperatura: {temp} grados C\n"
+               f"Umbral maximo: {config.TEMP_MAX_C} grados C")
+        enviar_mensaje_telegram(msg)
+        _alerta_temp_enviada["alta"] = True
+    elif temp <= config.TEMP_MAX_C:
+        _alerta_temp_enviada["alta"] = False   # Resetear alerta
+\end{lstlisting}
+
+\begin{block}{Mecanismo anti-spam}
+La alerta se env\'ia \textbf{una sola vez} cuando se supera el umbral.
+Solo se vuelve a enviar si la temperatura regresa al rango normal y vuelve a subir.
+\end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{L\'ogica de Alertas --- Movimiento y Nodo Ca\'ido}
+
+\begin{columns}
+\column{0.5\textwidth}
+\textbf{Movimiento nocturno}
+\begin{lstlisting}
+# Horario de alerta (config.py)
+HORA_ALERTA_INICIO = 22
+HORA_ALERTA_FIN    = 6
+
+def verificar_movimiento(datos):
+    if not datos.get("movimiento"):
+        return
+    hora = datetime.now().hour
+    fuera = (hora >= 22) or (hora < 6)
+    if fuera:
+        enviar_mensaje_telegram(
+          "ALERTA MOVIMIENTO "
+          "NOCTURNO")
+\end{lstlisting}
+
+\column{0.5\textwidth}
+\textbf{Nodo sin respuesta}
+\begin{lstlisting}
+MAX_SIN_RESPUESTA = 3
+
+def verificar_nodo_caido(
+        nombre_clave,
+        nombre_display):
+    _fallos[nombre_clave] += 1
+    fallos = _fallos[nombre_clave]
+    if fallos == MAX_SIN_RESPUESTA:
+        enviar_mensaje_telegram(
+          f"ALERTA NODO SIN "
+          f"RESPUESTA: "
+          f"{nombre_display}\n"
+          f"Intentos: {fallos}")
+\end{lstlisting}
+\end{columns}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Resumen de Umbrales Configurados}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Condici\'on} & \textbf{Umbral} & \textbf{Par\'ametro} & \textbf{Alerta} \\
+\midrule
+Temperatura alta     & $> 30.0$\,\textdegree C & \texttt{TEMP\_MAX\_C}           & S\'i, \'unica vez \\
+Temperatura baja     & $< 15.0$\,\textdegree C & \texttt{TEMP\_MIN\_C}           & S\'i, \'unica vez \\
+Movimiento nocturno  & 22:00 -- 06:00           & \texttt{HORA\_ALERTA\_*}        & S\'i, por evento \\
+Nodo sin respuesta   & 3 fallos seguidos        & \texttt{MAX\_SIN\_RESPUESTA}    & S\'i, al llegar a 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+Todos los umbrales se modifican en \texttt{config.py} sin tocar el c\'odigo principal.
+\end{frame}
+
+%================================================
+\section{Ejecuci\'on y Verificaci\'on}
+%================================================
+
+\begin{frame}{Ejecuci\'on del Sistema}
+
+El sistema requiere \textbf{3 terminales} (m\'as una opcional para Streamlit):
+
+\vspace{0.5em}
+\begin{block}{Terminal 1 --- Nodo Sensor 1}
+\texttt{cd "...SistemaUbicuo" \&\& python nodo\_sensor\_1.py}
+\end{block}
+
+\begin{block}{Terminal 2 --- Nodo Sensor 2}
+\texttt{cd "...SistemaUbicuo" \&\& python nodo\_sensor\_2.py}
+\end{block}
+
+\begin{block}{Terminal 3 --- Nodo Central}
+\texttt{cd "...SistemaUbicuo" \&\& python nodo\_central.py}
+\end{block}
+
+\begin{exampleblock}{Terminal 4 --- Interfaz Streamlit (opcional)}
+\texttt{cd "...SistemaUbicuo" \&\& streamlit run interfaz.py}
+\end{exampleblock}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Verificaci\'on del Sistema}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Componente} & \textbf{C\'omo verificar} & \textbf{Resultado esperado} \\
+\midrule
+Nodo 1 activo     & \texttt{GET localhost:5001/datos}     & JSON con temperatura y LED \\
+Nodo 2 activo     & \texttt{GET localhost:5002/datos}     & JSON con movimiento \\
+Comando HTTP      & \texttt{POST /comando \{LED\_ON\}}   & \texttt{\{"ok": true\}} \\
+Bot Telegram      & Escribir \texttt{/estado} al bot      & Respuesta con datos \\
+Alerta Telegram   & Esperar pico de temperatura           & Mensaje autom\'atico \\
+Streamlit         & \texttt{localhost:8501}               & Panel con botones \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+%================================================
+\section{Conclusiones}
+%================================================
+
+\begin{frame}{Conclusiones}
+
+\begin{itemize}
+  \item Se implement\'o un sistema de \textbf{computaci\'on ubicua} completamente funcional
+        usando solo Python y la biblioteca est\'andar.
+
+  \vspace{0.4em}
+  \item La comunicaci\'on es \textbf{bidireccional}: el nodo central consulta datos
+        \textit{y} env\'ia comandos a los nodos sensores.
+
+  \vspace{0.4em}
+  \item La integraci\'on con \textbf{Telegram} permite monitoreo y control remoto
+        en tiempo real desde cualquier dispositivo.
+
+  \vspace{0.4em}
+  \item El sistema detecta y notifica autom\'aticamente \textbf{tres tipos de alertas}:
+        temperatura fuera de rango, movimiento nocturno y nodo ca\'ido.
+
+  \vspace{0.4em}
+  \item La interfaz \textbf{Streamlit} proporciona una visualizaci\'on clara del
+        estado de los actuadores con control por clic.
+
+  \vspace{0.4em}
+  \item La arquitectura modular permite escalar f\'acilmente agregando m\'as nodos
+        o sensores con m\'inimos cambios en \texttt{config.py}.
+\end{itemize}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{}
+\begin{center}
+{\Huge ?`Preguntas?}\\[1em]
+{\large Sistema de Computaci\'on Ubicua}\\[0.5em]
+{\normalsize Jose Mena P --- Tecnolog\'ias Emergentes}
+\end{center}
+\end{frame}
+
+\end{document}

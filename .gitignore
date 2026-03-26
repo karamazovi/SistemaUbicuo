@@ -1,0 +1,18 @@
+# Secretos — NUNCA subir
+secretos.py
+
+# Caché Python
+__pycache__/
+*.py[cod]
+
+# Archivos de compilación LaTeX
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.snm
+*.toc
+*.vrb
+*.out
+*.synctex.gz
