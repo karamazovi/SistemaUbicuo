@@ -550,29 +550,159 @@ Todos los umbrales se modifican en \texttt{config.py} sin tocar el c\'odigo prin
 \end{frame}
 
 %================================================
+\section{Configuraci\'on Segura}
+%================================================
+
+\begin{frame}[fragile]{Gesti\'on de Secretos --- secretos.py}
+
+El token de Telegram \textbf{nunca debe subirse a git}. El sistema usa un archivo
+separado excluido del repositorio:
+
+\vspace{0.3em}
+\begin{columns}
+\column{0.48\textwidth}
+\begin{exampleblock}{secretos.example.py \quad (en git)}
+\begin{lstlisting}
+# Plantilla para estudiantes
+TELEGRAM_TOKEN   =
+  "PEGA_TU_TOKEN"
+TELEGRAM_CHAT_ID =
+  "PEGA_TU_CHAT_ID"
+\end{lstlisting}
+\end{exampleblock}
+
+\column{0.48\textwidth}
+\begin{alertblock}{secretos.py \quad (NO en git)}
+\begin{lstlisting}
+# Valores reales del estudiante
+TELEGRAM_TOKEN   =
+  "8689495203:AAFrKj..."
+TELEGRAM_CHAT_ID =
+  "933445452"
+\end{lstlisting}
+\end{alertblock}
+\end{columns}
+
+\vspace{0.5em}
+\begin{block}{config.py carga los secretos as\'i}
+\begin{lstlisting}
+import secretos
+TELEGRAM_TOKEN   = secretos.TELEGRAM_TOKEN
+TELEGRAM_CHAT_ID = secretos.TELEGRAM_CHAT_ID
+\end{lstlisting}
+\end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}[fragile]{Utilidad obtener\_chat\_id.py}
+
+Script de configuraci\'on inicial: espera un mensaje del estudiante en Telegram
+y muestra su Chat ID autom\'aticamente.
+
+\vspace{0.3em}
+\begin{lstlisting}
+# 1. Saltar mensajes viejos para no procesar el historial
+updates = get_updates(timeout=1)
+offset = (updates[-1]["update_id"] + 1) if updates else 0
+
+print("Esperando mensaje en Telegram...")
+
+# 2. Long polling: esperar hasta que llegue un mensaje nuevo
+while True:
+    resp = get_updates(offset=offset, timeout=20)
+    for update in resp.get("result", []):
+        chat_id = update["message"]["chat"]["id"]
+        print(f"Tu Chat ID es: {chat_id}")
+        exit(0)   # cerrar al obtener el dato
+\end{lstlisting}
+
+\begin{block}{Flujo del estudiante}
+\texttt{python obtener\_chat\_id.py}
+$\Rightarrow$ escribir al bot en Telegram
+$\Rightarrow$ copiar el n\'umero que aparece
+$\Rightarrow$ pegarlo en \texttt{secretos.py}
+\end{block}
+\end{frame}
+
+%================================================
 \section{Ejecuci\'on y Verificaci\'on}
 %================================================
 
-\begin{frame}{Ejecuci\'on del Sistema}
+\begin{frame}[fragile]{Paso 1 --- Configurar Credenciales (una sola vez)}
 
-El sistema requiere \textbf{3 terminales} (m\'as una opcional para Streamlit):
+Antes de correr cualquier archivo, configura tu bot de Telegram:
+
+\vspace{0.4em}
+\begin{alertblock}{Accion requerida}
+Copia \texttt{secretos.example.py} como \texttt{secretos.py} y pega tu token de BotFather.
+\end{alertblock}
+
+\vspace{0.4em}
+\begin{lstlisting}
+# secretos.py  (NO subir a git)
+TELEGRAM_TOKEN   = "PEGA_AQUI_TU_TOKEN"
+TELEGRAM_CHAT_ID = ""   # se completa en el siguiente paso
+\end{lstlisting}
+
+\vspace{0.4em}
+Luego corre \textbf{una sola vez} este script para obtener tu Chat ID:
+
+\begin{block}{Terminal --- Obtener Chat ID}
+\texttt{cd "C:\textbackslash{}Users\textbackslash{}...\textbackslash{}SistemaUbicuo"}\\
+\texttt{python obtener\_chat\_id.py}\\
+{\small $\Rightarrow$ Escribele al bot en Telegram $\Rightarrow$ copia el numero que aparece $\Rightarrow$ pegalo en \texttt{secretos.py}}
+\end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Paso 2 --- Levantar los Nodos (en orden)}
+
+Abre \textbf{4 terminales} y ejecuta cada comando. Respeta el orden:
+
+\vspace{0.3em}
+\begin{exampleblock}{Terminal 1 --- Nodo Sensor 1 \quad (primero)}
+\texttt{cd "C:\textbackslash{}Users\textbackslash{}...\textbackslash{}SistemaUbicuo"}\\
+\texttt{python nodo\_sensor\_1.py}
+\end{exampleblock}
+
+\begin{exampleblock}{Terminal 2 --- Nodo Sensor 2 \quad (segundo)}
+\texttt{cd "C:\textbackslash{}Users\textbackslash{}...\textbackslash{}SistemaUbicuo"}\\
+\texttt{python nodo\_sensor\_2.py}
+\end{exampleblock}
+
+\begin{block}{Terminal 3 --- Nodo Central \quad (tercero, cuando los nodos ya corren)}
+\texttt{cd "C:\textbackslash{}Users\textbackslash{}...\textbackslash{}SistemaUbicuo"}\\
+\texttt{python nodo\_central.py}
+\end{block}
+
+\begin{block}{Terminal 4 --- Interfaz Streamlit \quad (opcional)}
+\texttt{cd "C:\textbackslash{}Users\textbackslash{}...\textbackslash{}SistemaUbicuo"}\\
+\texttt{streamlit run interfaz.py}
+\end{block}
+\end{frame}
+
+%------------------------------------------------
+\begin{frame}{Ejecuci\'on del Sistema --- Resumen}
+
+\begin{center}
+\begin{tabular}{clll}
+\toprule
+\textbf{Orden} & \textbf{Comando} & \textbf{Puerto} & \textbf{Cuando} \\
+\midrule
+1 & \texttt{python obtener\_chat\_id.py} & ---  & Solo la primera vez \\
+2 & \texttt{python nodo\_sensor\_1.py}   & 5001 & Antes del central \\
+3 & \texttt{python nodo\_sensor\_2.py}   & 5002 & Antes del central \\
+4 & \texttt{python nodo\_central.py}     & ---  & Con nodos activos \\
+5 & \texttt{streamlit run interfaz.py}   & 8501 & Opcional \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \vspace{0.5em}
-\begin{block}{Terminal 1 --- Nodo Sensor 1}
-\texttt{cd "...SistemaUbicuo" \&\& python nodo\_sensor\_1.py}
-\end{block}
-
-\begin{block}{Terminal 2 --- Nodo Sensor 2}
-\texttt{cd "...SistemaUbicuo" \&\& python nodo\_sensor\_2.py}
-\end{block}
-
-\begin{block}{Terminal 3 --- Nodo Central}
-\texttt{cd "...SistemaUbicuo" \&\& python nodo\_central.py}
-\end{block}
-
-\begin{exampleblock}{Terminal 4 --- Interfaz Streamlit (opcional)}
-\texttt{cd "...SistemaUbicuo" \&\& streamlit run interfaz.py}
-\end{exampleblock}
+\begin{alertblock}{Importante}
+Si el nodo central arranca antes que los sensores, genera alertas falsas de
+``nodo ca\'ido''. Siempre levantar primero los nodos sensores.
+\end{alertblock}
 \end{frame}
 
 %------------------------------------------------

@@ -68,7 +68,11 @@ def _llamar_api_telegram(metodo, parametros=None):
         with urllib.request.urlopen(req, timeout=15) as respuesta:
             return json.loads(respuesta.read().decode("utf-8"))
     except Exception as e:
-        print(f"  [Telegram ERROR] {metodo}: {e}")
+        msg = str(e)
+        if "409" in msg:
+            time.sleep(3)   # otra instancia activa, esperar que libere
+        else:
+            print(f"  [Telegram ERROR] {metodo}: {e}")
         return None
 
 

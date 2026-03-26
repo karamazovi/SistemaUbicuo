@@ -1,74 +1,90 @@
 """
 obtener_chat_id.py
 ==================
-Ejecuta este script DESPUES de enviarle un mensaje a tu bot en Telegram.
-Te muestra el Chat ID que debes poner en config.py
+Obtiene tu Chat ID de Telegram usando solo el token del bot.
 
 Pasos:
-  1. Abre Telegram y busca tu bot (el username que le diste en BotFather)
-  2. Enviole cualquier mensaje, por ejemplo: hola
-  3. Corre este script:
+  1. Corre este script:
        python obtener_chat_id.py
-  4. Copia el numero que aparece y pegalo en config.py como TELEGRAM_CHAT_ID
+  2. Cuando veas "Esperando mensaje...", abre Telegram y escribele
+     cualquier cosa a tu bot (por ejemplo: hola)
+  3. El script muestra tu Chat ID automaticamente
+  4. Copia el numero y pegalo en secretos.py como TELEGRAM_CHAT_ID
 """
 
 import json
+import time
 import urllib.request
 import config
 
-URL = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/getUpdates"
+BASE = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}"
 
-print("Consultando mensajes del bot...")
+
+def get_updates(offset=None, timeout=20):
+    url = f"{BASE}/getUpdates?timeout={timeout}"
+    if offset is not None:
+        url += f"&offset={offset}"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=timeout + 5) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# Verificar que el token es valido
+print("Verificando token...")
+resp = get_updates(timeout=1)
+if not resp.get("ok"):
+    print()
+    print("ERROR: No se pudo conectar con Telegram.")
+    print("Verifica que TELEGRAM_TOKEN en secretos.py sea correcto.")
+    print(f"Detalle: {resp.get('error', resp)}")
+    input("\nPresiona Enter para salir...")
+    exit(1)
+
+# Calcular offset para ignorar mensajes viejos
+updates = resp.get("result", [])
+offset = (updates[-1]["update_id"] + 1) if updates else 0
+
+print("Token valido.")
 print()
-
-try:
-    with urllib.request.urlopen(URL, timeout=10) as resp:
-        datos = json.loads(resp.read().decode("utf-8"))
-except Exception as e:
-    print(f"Error al contactar Telegram: {e}")
-    print("Verifica que TELEGRAM_TOKEN en config.py sea correcto.")
-    input("\nPresiona Enter para salir...")
-    exit(1)
-
-if not datos.get("ok"):
-    print("Respuesta inesperada de Telegram:", datos)
-    input("\nPresiona Enter para salir...")
-    exit(1)
-
-mensajes = datos.get("result", [])
-
-if not mensajes:
-    print("=" * 50)
-    print("  No hay mensajes nuevos.")
-    print("=" * 50)
-    print()
-    print("Haz lo siguiente:")
-    print("  1. Abre Telegram")
-    print("  2. Busca tu bot y enviale un mensaje (cualquier texto)")
-    print("  3. Vuelve a correr este script")
-    input("\nPresiona Enter para salir...")
-    exit(0)
-
 print("=" * 50)
-print("  Mensajes encontrados:")
+print("  Esperando mensaje en Telegram...")
+print("  Escribele cualquier cosa a tu bot ahora.")
 print("=" * 50)
 
-for update in mensajes:
-    msg = update.get("message", {})
-    chat = msg.get("chat", {})
-    chat_id   = chat.get("id", "?")
-    nombre    = chat.get("first_name", "") + " " + chat.get("last_name", "")
-    username  = chat.get("username", "sin username")
-    texto     = msg.get("text", "(sin texto)")
-    print(f"  Nombre  : {nombre.strip()}")
-    print(f"  Username: @{username}")
-    print(f"  Chat ID : {chat_id}   <-- este es el que necesitas")
-    print(f"  Mensaje : {texto}")
-    print()
+# Esperar el proximo mensaje nuevo
+while True:
+    resp = get_updates(offset=offset, timeout=20)
+    if not resp.get("ok"):
+        print(f"Error de red, reintentando... ({resp.get('error', '')})")
+        time.sleep(2)
+        continue
 
-print("=" * 50)
-ultimo_id = mensajes[-1]["message"]["chat"]["id"]
-print(f"  Pon este valor en config.py:")
-print(f'  TELEGRAM_CHAT_ID = "{ultimo_id}"')
-print("=" * 50)
-input("\nPresiona Enter para salir...")
+    for update in resp.get("result", []):
+        offset = update["update_id"] + 1
+        msg    = update.get("message", {})
+        chat   = msg.get("chat", {})
+
+        if not chat:
+            continue
+
+        chat_id  = chat.get("id")
+        nombre   = (chat.get("first_name", "") + " " + chat.get("last_name", "")).strip()
+        username = chat.get("username", "sin username")
+        texto    = msg.get("text", "(sin texto)")
+
+        print()
+        print("  Mensaje recibido!")
+        print(f"  Nombre  : {nombre}")
+        print(f"  Username: @{username}")
+        print(f"  Mensaje : {texto}")
+        print()
+        print("=" * 50)
+        print(f"  Tu Chat ID es: {chat_id}")
+        print()
+        print(f"  Ponlo en secretos.py:")
+        print(f'  TELEGRAM_CHAT_ID = "{chat_id}"')
+        print("=" * 50)
+        exit(0)
